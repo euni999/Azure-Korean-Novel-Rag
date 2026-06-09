@@ -66,9 +66,8 @@ def hybrid_search(query: str, top_k: int = 3) -> list:
     return [dict(r) for r in results]
 
 def get_recent_history(n: int = 3) -> list:
-    """최근 n개 대화만 반환 (system 메시지 제외)"""
     history = [m for m in st.session_state.messages if m["role"] != "system"]
-    return history[-n*2:]  # user + assistant 쌍으로 n개
+    return history[-n*2:]
 
 def stream_recommendation(query: str, novels: list):
     context = ""
@@ -85,6 +84,8 @@ def stream_recommendation(query: str, novels: list):
                 "아래 [추천 소설] 목록을 보고 사용자의 키워드와 관련 있는 소설만 추천하세요.\n"
                 "목록의 소설이 키워드와 관련이 없다면 '관련 소설 없음'이라고만 답하세요.\n"
                 "관련 있는 소설이 있으면:\n"
+                "- 답변 첫 줄에 반드시 'RELEVANT:1,2,3' 형식으로 관련 소설 번호만 적으세요. (예: RELEVANT:1,3)\n"
+                "- 그 다음 줄부터 추천 이유를 작성하세요.\n"
                 "- 소설 제목은 **굵게** 표시\n"
                 "- 각 소설마다 한 줄 띄워서 가독성 있게\n"
                 "- 전체 300자 내외"
@@ -126,7 +127,6 @@ st.set_page_config(page_title="한국 소설 추천", page_icon="📚", layout="
 st.title("📚 한국 소설 추천")
 st.caption("장르를 선택하거나 키워드로 소설을 추천받으세요")
 
-# ── 챗봇
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "안녕하세요! 원하는 소설 분위기나 키워드를 알려주세요. 아래 장르 버튼을 눌러도 돼요 😊"}
@@ -150,12 +150,12 @@ if prompt:
             novels = hybrid_search(prompt, top_k=3)
 
         if not novels:
-            response = "입력하신 키워드와 관련된 소설을 찾지 못했어요. 좀 더 구체적인 키워드를 입력해보세요. (예: '가족 갈등', '70년대 역사', '청소년 성장 우정')"
+            response = "입력하신 키워드와 관련된 소설을 찾지 못했어요. 좀 더 구체적인 키워드를 입력해보세요."
             st.markdown(response)
         else:
             stream = stream_recommendation(prompt, novels)
 
-            # 스트리밍 응답 수집
+            # 스트리밍 수집
             collected = []
             placeholder = st.empty()
             for chunk in stream:
@@ -164,12 +164,24 @@ if prompt:
                     placeholder.markdown("".join(collected))
             response = "".join(collected)
 
-            # "관련 소설 없음" 아닐 때만 카드 표시
-            if "관련 소설 없음" not in response:
+            # RELEVANT 파싱
+            relevant_novels = []
+            lines = response.splitlines()
+            if lines and lines[0].startswith("RELEVANT:"):
+                try:
+                    idxs = [int(x.strip()) - 1 for x in lines[0].replace("RELEVANT:", "").split(",")]
+                    relevant_novels = [novels[i] for i in idxs if 0 <= i < len(novels)]
+                except Exception:
+                    relevant_novels = novels
+                response = "\n".join(lines[1:]).strip()
+                placeholder.markdown(response)
+
+            # 관련 소설 있을 때만 카드 표시
+            if relevant_novels and "관련 소설 없음" not in response:
                 with st.expander("📖 검색된 소설", expanded=True):
-                    for i, n in enumerate(novels):
+                    for i, n in enumerate(relevant_novels):
                         render_novel_card(n)
-                        if i < len(novels) - 1:
+                        if i < len(relevant_novels) - 1:
                             st.divider()
 
         st.session_state.messages.append({"role": "assistant", "content": response})
