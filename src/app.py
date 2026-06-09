@@ -1,5 +1,5 @@
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 import streamlit as st
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -9,7 +9,6 @@ from azure.core.credentials import AzureKeyCredential
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"), override=True)
 
-# AzureOpenAI는 경로 없는 base URL을 요구하므로 scheme + netloc만 추출
 _p = urlparse(os.getenv("AZURE_OPENAI_ENDPOINT", ""))
 OPENAI_ENDPOINT = f"{_p.scheme}://{_p.netloc}/"
 
@@ -33,21 +32,21 @@ EMBED_DEPLOY = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-
 CHAT_DEPLOY  = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4o-mini")
 
 GENRES = {
-    "판타지":   "판타지 마법 이세계 모험",
-    "스릴러":   "스릴러 범죄 추리 긴장감 반전",
-    "로맨스":   "로맨스 사랑 연애 설렘",
-    "역사소설": "역사 시대 조선 근현대사 대하소설",
-    "성장소설": "성장 청소년 자아 변화 우정",
-    "가족드라마":"가족 갈등 관계 세대 부모",
-    "사회비판": "사회비판 현실 차별 부조리",
-    "힐링":     "힐링 따뜻함 치유 위로 일상",
-    "SF":       "SF 과학 미래 우주 기술",
-    "공포":     "공포 호러 심리 불안",
+    "판타지":    "판타지 마법 이세계 모험",
+    "스릴러":    "스릴러 범죄 추리 긴장감 반전",
+    "로맨스":    "로맨스 사랑 연애 설렘",
+    "역사소설":  "역사 시대 조선 근현대사 대하소설",
+    "성장소설":  "성장 청소년 자아 변화 우정",
+    "가족드라마": "가족 갈등 관계 세대 부모",
+    "사회비판":  "사회비판 현실 차별 부조리",
+    "힐링":      "힐링 따뜻함 치유 위로 일상",
+    "SF":        "SF 과학 미래 우주 기술",
+    "공포":      "공포 호러 심리 불안",
 }
 
 def get_embedding(text: str) -> list:
     text = str(text).strip() or "내용 없음"
-    text = text[:3000]  # 토큰 초과 방지
+    text = text[:3000]
     return openai_client.embeddings.create(
         input=text, model=EMBED_DEPLOY
     ).data[0].embedding
@@ -92,12 +91,31 @@ def stream_recommendation(query: str, novels: list):
         stream=True
     )
 
+def render_novel_card(n: dict):
+    """표지 이미지 + 제목(알라딘 링크) + 저자/연도/쪽수"""
+    aladin_url = f"https://www.aladin.co.kr/search/wsearchresult.aspx?SearchTarget=Book&SearchWord={quote(n['title'])}"
+    img_url = n.get("img_url", "")
+
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if img_url:
+            st.image(img_url, width=80)
+        else:
+            st.markdown("📗")
+    with col2:
+        st.markdown(f"**[{n['title']}]({aladin_url})** · {n['author']}")
+        info = f"{n.get('pub_year', '')}년"
+        if n.get("page_count"):
+            info += f" · {n['page_count']}p"
+        st.caption(info)
+        st.caption(n.get("summary", "")[:100] + "...")
+
 # ── UI
 st.set_page_config(page_title="한국 소설 추천", page_icon="📚", layout="centered")
 st.title("📚 한국 소설 추천")
 st.caption("장르를 선택하거나 키워드로 소설을 추천받으세요")
 
-# ── 챗봇 (위)
+# ── 챗봇
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "안녕하세요! 원하는 소설 분위기나 키워드를 알려주세요. 아래 장르 버튼을 눌러도 돼요 😊"}
@@ -126,8 +144,8 @@ if prompt:
         else:
             with st.expander("📖 검색된 소설", expanded=True):
                 for n in novels:
-                    st.markdown(f"**{n['title']}** · {n['author']} ({n['pub_year']})")
-                    st.caption(n.get("summary", "")[:100] + "...")
+                    render_novel_card(n)
+                    st.divider()
 
             stream = stream_recommendation(prompt, novels)
             response = st.write_stream(
@@ -140,7 +158,7 @@ if prompt:
 
 st.divider()
 
-# ── 장르 버튼 (아래)
+# ── 장르 버튼
 cols = st.columns(5)
 for i, label in enumerate(GENRES):
     with cols[i % 5]:
