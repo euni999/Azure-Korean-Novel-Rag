@@ -65,34 +65,47 @@ def hybrid_search(query: str, top_k: int = 3) -> list:
     )
     return [dict(r) for r in results]
 
+def get_recent_history(n: int = 3) -> list:
+    """최근 n개 대화만 반환 (system 메시지 제외)"""
+    history = [m for m in st.session_state.messages if m["role"] != "system"]
+    return history[-n*2:]  # user + assistant 쌍으로 n개
+
 def stream_recommendation(query: str, novels: list):
     context = ""
     for i, n in enumerate(novels, 1):
         context += f"{i}. {n['title']} - {n['author']} ({n['pub_year']})\n"
         context += f"   줄거리: {n['summary']}\n\n"
 
+    history = get_recent_history(3)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "당신은 한국 소설 추천 전문가입니다.\n"
+                "아래 [추천 소설] 목록을 보고 사용자의 키워드와 관련 있는 소설만 추천하세요.\n"
+                "목록의 소설이 키워드와 관련이 없다면 '관련 소설 없음'이라고만 답하세요.\n"
+                "관련 있는 소설이 있으면:\n"
+                "- 소설 제목은 **굵게** 표시\n"
+                "- 각 소설마다 한 줄 띄워서 가독성 있게\n"
+                "- 전체 300자 내외"
+            )
+        }
+    ]
+    messages += history
+    messages.append({
+        "role": "user",
+        "content": f"키워드: {query}\n\n[추천 소설]\n{context}"
+    })
+
     return openai_client.chat.completions.create(
         model=CHAT_DEPLOY,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "당신은 한국 소설 추천 전문가입니다. "
-                    "반드시 아래 [추천 소설] 목록에 있는 소설만 언급하세요. "
-                    "목록에 없는 소설은 절대 추천하지 마세요. "
-                    "각 소설이 사용자의 키워드와 어떻게 연결되는지 구체적으로 설명하세요. "
-                    "300자 내외로 답변하세요."
-                )
-            },
-            {"role": "user", "content": f"키워드: {query}\n\n[추천 소설]\n{context}"}
-        ],
+        messages=messages,
         max_tokens=600,
         temperature=0.7,
         stream=True
     )
 
 def render_novel_card(n: dict):
-    """표지 이미지 + 제목(알라딘 링크) + 저자/연도/쪽수"""
     aladin_url = f"https://www.aladin.co.kr/search/wsearchresult.aspx?SearchTarget=Book&SearchWord={quote(n['title'])}"
     img_url = n.get("img_url", "")
 
@@ -103,12 +116,10 @@ def render_novel_card(n: dict):
         else:
             st.markdown("📗")
     with col2:
-        st.markdown(f"**[{n['title']}]({aladin_url})** · {n['author']}")
-        info = f"{n.get('pub_year', '')}년"
-        if n.get("page_count"):
-            info += f" · {n['page_count']}p"
-        st.caption(info)
-        st.caption(n.get("summary", "")[:100] + "...")
+        st.markdown(f"#### [{n['title']}]({aladin_url})")
+        st.markdown(f"**저자** {n['author']}　**출판** {n.get('pub_year', '-')}년"
+                    + (f"　**분량** {n['page_count']}p" if n.get("page_count") else ""))
+        st.markdown(f"<small>{n.get('summary', '')[:120]}...</small>", unsafe_allow_html=True)
 
 # ── UI
 st.set_page_config(page_title="한국 소설 추천", page_icon="📚", layout="centered")
@@ -142,17 +153,24 @@ if prompt:
             response = "입력하신 키워드와 관련된 소설을 찾지 못했어요. 좀 더 구체적인 키워드를 입력해보세요. (예: '가족 갈등', '70년대 역사', '청소년 성장 우정')"
             st.markdown(response)
         else:
-            with st.expander("📖 검색된 소설", expanded=True):
-                for n in novels:
-                    render_novel_card(n)
-                    st.divider()
-
             stream = stream_recommendation(prompt, novels)
-            response = st.write_stream(
-                chunk.choices[0].delta.content
-                for chunk in stream
-                if chunk.choices and chunk.choices[0].delta.content
-            )
+
+            # 스트리밍 응답 수집
+            collected = []
+            placeholder = st.empty()
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    collected.append(chunk.choices[0].delta.content)
+                    placeholder.markdown("".join(collected))
+            response = "".join(collected)
+
+            # "관련 소설 없음" 아닐 때만 카드 표시
+            if "관련 소설 없음" not in response:
+                with st.expander("📖 검색된 소설", expanded=True):
+                    for i, n in enumerate(novels):
+                        render_novel_card(n)
+                        if i < len(novels) - 1:
+                            st.divider()
 
         st.session_state.messages.append({"role": "assistant", "content": response})
 
