@@ -7,7 +7,7 @@ from azure.search.documents import SearchClient
 from azure.search.documents.models import VectorizedQuery
 from azure.core.credentials import AzureKeyCredential
 
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"), override=True)
 
 # AzureOpenAI는 경로 없는 base URL을 요구하므로 scheme + netloc만 추출
 _p = urlparse(os.getenv("AZURE_OPENAI_ENDPOINT", ""))

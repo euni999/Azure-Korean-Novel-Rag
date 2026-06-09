@@ -34,13 +34,17 @@ Azure OpenAI GPT-4o-mini가 왜 이 소설을 추천하는지 설명해줍니다
 
 ```
 .
-├── 01_data_collection.ipynb          # 카카오 Books API 수집 (미사용)
-├── 01_data_collection_Aladin.ipynb   # 알라딘 API 수집 (미사용)
-├── 01_data_collection_Google.ipynb   # Google Books API + Azure Blob 저장
-├── 02_indexing.ipynb                 # 임베딩 생성 + Azure AI Search 인덱스 구축
-├── app.py                            # Streamlit 챗봇 앱
+├── notebooks/
+│   ├── 01_data_collection.ipynb          # 카카오 Books API 수집 (미사용)
+│   ├── 01_data_collection_Aladin.ipynb   # 알라딘 API 수집 (미사용)
+│   ├── 01_data_collection_Google.ipynb   # Google Books API + Azure Blob 저장
+│   └── 02_indexing.ipynb                 # 임베딩 생성 + Azure AI Search 인덱스 구축
+├── src/
+│   └── app.py                            # Streamlit 챗봇 앱
+├── docs/
+│   └── CONTRIBUTING.md                   # 기여 가이드
 ├── requirements.txt
-└── .env.example                      # 환경변수 템플릿
+└── .env.example                          # 환경변수 템플릿
 ```
 
 ---
@@ -76,17 +80,17 @@ pip install -r requirements.txt
 
 ### 3. 데이터 수집 → 인덱싱
 
-Jupyter에서 순서대로 실행하세요.
+`notebooks/` 폴더에서 순서대로 실행하세요.
 
 ```
-1. 01_data_collection_Google.ipynb   # 데이터 수집 + Blob 업로드
-2. 02_indexing.ipynb                 # 임베딩 + 인덱스 구축
+1. notebooks/01_data_collection_Google.ipynb   # 데이터 수집 + Blob 업로드
+2. notebooks/02_indexing.ipynb                 # 임베딩 + 인덱스 구축
 ```
 
 ### 4. 앱 실행
 
 ```bash
-streamlit run app.py
+streamlit run src/app.py
 ```
 
 ---
