@@ -1,0 +1,7 @@
+openai
+streamlit
+azure-storage-blob
+python-dotenv
+azure-search-documents
+requests
+tqdm
