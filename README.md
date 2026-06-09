@@ -1,4 +1,10 @@
 # 📚 Azure Korean Novel RAG
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![Azure](https://img.shields.io/badge/Azure_AI_Search-0078D4?logo=microsoftazure&logoColor=white)
+![OpenAI](https://img.shields.io/badge/Azure_OpenAI-412991?logo=openai&logoColor=white)
+![Google API](https://img.shields.io/badge/Google%20API-4285F4?style=flat-square&logo=googlecloud&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 > Azure 기반 한국 소설 하이브리드 검색 + AI 추천 시스템
 
