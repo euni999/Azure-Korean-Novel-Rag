@@ -94,6 +94,8 @@ streamlit run src/app.py
 ```
 
 ---
+## 실행 화면
+!docs/example1.png
 
 ## 주요 기능
 
