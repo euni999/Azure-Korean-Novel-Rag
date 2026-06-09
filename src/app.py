@@ -6,6 +6,9 @@ from openai import AzureOpenAI
 from azure.search.documents import SearchClient
 from azure.search.documents.models import VectorizedQuery
 from azure.core.credentials import AzureKeyCredential
+import re
+import datetime
+
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"), override=True)
 
@@ -58,10 +61,13 @@ def hybrid_search(query: str, top_k: int = 5) -> list:
         fields="summary_vector",
         weight=0.7  # 0~1, 높을수록 벡터 검색 비중 높음
     )
+    filter_expr = f"pub_year ge '{min_year}'" if min_year else None
+
     results = search_client.search(
         search_text=query,
         vector_queries=[vector_query],
         select=["title", "author", "pub_year", "category", "summary", "page_count", "img_url"],
+        filter=filter_expr,
         top=top_k
     )
     return [dict(r) for r in results]
@@ -83,7 +89,8 @@ def stream_recommendation(query: str, novels: list):
             "content": (
                 "당신은 한국 소설 추천 전문가입니다.\n"
                 "아래 [추천 소설] 목록을 보고 사용자의 키워드와 관련 있는 소설만 추천하세요.\n"
-                "목록의 소설이 키워드와 관련이 없다면 '관련 소설 없음'이라고만 답하세요.\n"
+                "목록의 소설이 키워드와 완전히 무관할 때만 '관련 소설 없음'이라고 답하세요.\n"
+                "조금이라도 관련 있으면 전부 RELEVANT에 포함하세요.\n"
                 "관련 있는 소설이 있으면:\n"
                 "- 답변 첫 줄에 반드시 'RELEVANT:1,2,3' 형식으로 관련 소설 번호만 적으세요. (예: RELEVANT:1,3)\n"
                 "- 그 다음 줄부터 추천 이유를 작성하세요.\n"
@@ -146,9 +153,15 @@ if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        with st.spinner("소설 검색 중..."):
-            novels = hybrid_search(prompt, top_k=3)
+    # 쿼리에서 연도 추출
+    year_match = re.search(r'(\d+)년', prompt)
+    min_year = None
+    if year_match:
+        n_years = int(year_match.group(1))
+        min_year = str(datetime.datetime.now().year - n_years)
+
+    with st.spinner("소설 검색 중..."):
+        novels = hybrid_search(prompt, top_k=5, min_year=min_year)
 
         if not novels:
             response = "입력하신 키워드와 관련된 소설을 찾지 못했어요. 좀 더 구체적인 키워드를 입력해보세요."
