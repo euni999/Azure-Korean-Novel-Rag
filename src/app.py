@@ -51,11 +51,12 @@ def get_embedding(text: str) -> list:
         input=text, model=EMBED_DEPLOY
     ).data[0].embedding
 
-def hybrid_search(query: str, top_k: int = 3) -> list:
+def hybrid_search(query: str, top_k: int = 5) -> list:
     vector_query = VectorizedQuery(
         vector=get_embedding(query),
         k_nearest_neighbors=top_k,
-        fields="summary_vector"
+        fields="summary_vector",
+        weight=0.7  # 0~1, 높을수록 벡터 검색 비중 높음
     )
     results = search_client.search(
         search_text=query,
