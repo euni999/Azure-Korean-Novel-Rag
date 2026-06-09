@@ -2,14 +2,14 @@
 
 > Azure 기반 한국 소설 하이브리드 검색 + AI 추천 시스템
 
-키워드나 장르를 입력하면 Azure AI Search의 **하이브리드 검색(벡터 + 키워드)**으로 소설을 찾고,  
+키워드나 장르를 입력하면 Azure AI Search의 하이브리드 검색(벡터 + 키워드)으로 소설을 찾고,  
 Azure OpenAI GPT-4o-mini가 왜 이 소설을 추천하는지 설명해줍니다.
 
 ---
 
 ## 아키텍처
 
-~~Kakao Books API~~ / ~~알라딘 API~~ / **Google Books API** (데이터 수집)  
+~~Kakao Books API~~ / ~~알라딘 API~~ / Google Books API (데이터 수집)  
 → Azure Blob Storage (`novels_raw.json`)  
 → Azure OpenAI `text-embedding-3-small` (임베딩)  
 → Azure AI Search (HNSW 벡터 + `ko.microsoft` 한국어 형태소 인덱스)  
