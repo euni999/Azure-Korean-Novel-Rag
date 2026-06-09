@@ -54,7 +54,7 @@ def get_embedding(text: str) -> list:
         input=text, model=EMBED_DEPLOY
     ).data[0].embedding
 
-def hybrid_search(query: str, top_k: int = 5) -> list:
+def hybrid_search(query: str, top_k: int = 5, min_year: str = None) -> list:
     vector_query = VectorizedQuery(
         vector=get_embedding(query),
         k_nearest_neighbors=top_k,
